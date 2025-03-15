@@ -1,0 +1,30 @@
+dnf install epel-release -y
+
+sudo dnf install google-authenticator qrencode qrencode-libs -y
+
+google-authenticator
+
+sudo nano /etc/pam.d/sshd
+
+--------------auth required pam_google_authenticator.so----------------
+
+sudo systemctl restart sshd
+
+sudo nano /etc/ssh/sshd_config
+
+KbdInteractiveAuthentication yes sin #
+PassWordAuthentication yes sin #
+UsePam yes sin #
+PermitRootLogin yes sin #
+ChallengeResponseAuthentication yes sin #
+
+
+
+sudo systemctl enable --now sshd
+sudo systemctl start sshd
+sudo systemctl restart sshd
+ssh localhost
+
+
+
+ssh 2024-1913@192.168.175.130

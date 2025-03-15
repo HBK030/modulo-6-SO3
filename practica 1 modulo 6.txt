@@ -1,0 +1,14 @@
+sudo dnf install gnupg2 -y 
+mkdir prueba
+nano prueba/linux.txt
+gpg2 -c prueba/linux.txt
+ls
+cd prueba/
+ls
+cat linux.txt.gpg
+gpg2 -d linux.txt.gpg
+ls
+
+
+
+

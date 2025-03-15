@@ -1,0 +1,49 @@
+sudo systemctl stop firewalld
+
+sudo dnf install httpd vsftpd openssh-server -y
+
+sudo systemctl start httpd
+sudo systemctl enable httpd
+
+sudo systemctl start vsftpd
+sudo systemctl enable vsftpd
+
+sudo systemctl start sshd
+sudo systemctl enable sshd
+
+sudo systemctl status httpd
+sudo systemctl status vsftpd
+sudo systemctl status sshd
+
+iptables --version
+
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 21 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+sudo iptables -D INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -D INPUT -p tcp --dport 21 -j ACCEPT
+sudo iptables -D INPUT -p tcp --dport 22 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -j REJECT
+sudo iptables -A INPUT -p tcp --dport 22 -j REJECT
+sudo iptables -A INPUT -p tcp --dport 21 -j REJECT
+
+
+sudo iptables -D INPUT -p tcp --dport 80 -j REJECT
+sudo iptables -D INPUT -p tcp --dport 22 -j REJECT
+sudo iptables -D INPUT -p tcp --dport 21 -j REJECT
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 21 -j ACCEPT
+
+sudo systemctl start firewalld
+
+sudo firewall-cmd --zone=public --remove-service=http --permanent
+sudo firewall-cmd --zone=public --remove-service=ftp --permanent
+sudo firewall-cmd --zone=public --remove-service=ssh --permanent
+sudo firewall-cmd --reload
+
+sudo firewall-cmd --zone=public --add-service=http --permanent
+sudo firewall-cmd --zone=public --add-service=ftp --permanent
+sudo firewall-cmd --zone=public --add-service=ssh --permanent
+sudo firewall-cmd --reload
