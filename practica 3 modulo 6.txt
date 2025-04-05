@@ -1,6 +1,6 @@
-ssh-keygen -t rsa -b 4096 -C fulanazo@192.168.175.129
+ssh-keygen -t rsa -b 4096 -C fulanazo@nuestraIP
 
-ssh fulanazo@192.168.175.129
+ssh fulanazo@nuestraIP
 
 sudo dnf install -y epel-release
 sudo dnf install -y elrepo-release
