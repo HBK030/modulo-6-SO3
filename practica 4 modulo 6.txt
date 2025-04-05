@@ -27,4 +27,4 @@ ssh localhost
 
 
 
-ssh 2024-1913@192.168.175.130
+ssh 2024-1913@nuestraIP
