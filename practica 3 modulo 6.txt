@@ -1,29 +1,177 @@
-ssh-keygen -t rsa -b 4096 -C fulanazo@nuestraIP
+===========================================================
+===========================================================
+PRÁCTICA 3: Instalación y Configuración de Snort (IDS)
+===========================================================
 
-ssh fulanazo@nuestraIP
+1. Preparación del Sistema:
+----------------------------
+sudo dnf update -y
+sudo dnf install epel-release -y
+sudo subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
+sudo dnf upgrade -y
 
-sudo dnf install -y epel-release
-sudo dnf install -y elrepo-release
+# Agregar rutas de bibliotecas
+echo -e "/usr/local/lib\n/usr/local/lib64" | sudo tee /etc/ld.so.conf.d/local.conf
+sudo ldconfig
 
-sudo dnf install suricata -y
-cd /var/lib/suricata/
-ls
-mkdir rules
-ls
-cd rules
-sudo nano myrules
 
-alert tcp any any -> $HOME_NET any (msg:"ICMP Ping detected"; sid:10001;)
-alert tcp any any -> $HOME_NET 21 (msg:"Traffic to port 21 detected"; sid:10002;)
-alert tcp any any -> $HOME_NET 22 (msg:"Traffic to port 22 detected"; sid:10003;)
-alert tcp any any -> $HOME_NET 80 (msg:"Traffic to port 80 detected"; sid:10004;)
+sudo ldconfig
 
-ls
-cd
-nano /etc/suricata/suricata.yaml
-systemctl start suricata.service
-systemctl enable suricata.service
+2. Instalar Dependencias:
+--------------------------
+sudo dnf install -y \
+    flex bison gcc gcc-c++ make cmake autoconf libtool git nano unzip wget \
+    libpcap-devel pcre-devel libdnet-devel hwloc-devel openssl-devel zlib-devel \
+    luajit-devel pkgconfig pkgconf libunwind-devel libnfnetlink-devel \
+    libnetfilter_queue-devel libmnl-devel xz-devel gperftools libuuid-devel \
+    hyperscan hyperscan-devel
+sudo yum install subscription-manager
 
-sudo tail -f /var/log/suricata/fast.log
 
-sudo suricata -c /etc/suricata/suricata.yaml -i ens160
+
+sudo dnf config-manager --set-enabled powertools
+sudo dnf install libpcap-devel libdnet-devel hwloc-devel libnfnetlink-devel libnetfilter_queue-devel
+
+
+
+3. Instalación de LibDAQ:
+--------------------------
+git clone https://github.com/snort3/libdaq.git -y
+sudo dnf install autoconf automake libtool
+cd libdaq/
+./bootstrap
+./configure
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+cd ..
+
+4. Instalación de Snort 3 desde fuentes:
+----------------------------------------
+git clone https://github.com/snort3/snort3.git
+cd snort3
+
+# Variables para compilación optimizada
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH
+export CFLAGS="-O3"
+export CXXFLAGS="-O3 -fno-rtti"
+
+dnf install cmake -y
+sudo dnf install gcc-c++
+sudo dnf install flex bison
+sudo dnf install cmake gcc gcc-c++ libpcap-devel libdnet-devel \
+    luajit-devel hwloc-devel libunwind-devel openssl-devel zlib-devel \
+    hyperscan hyperscan-devel
+sudo dnf install gperftools gperftools-devel
+sudo dnf install uuid-devel numactl-devel libsafec-devel w3m
+sudo dnf install xz-devel
+
+./configure_cmake.sh --prefix=/usr/local/snort --enable-tcmalloc
+cd build/
+make -j$(nproc)
+sudo make install
+cd ../..
+sudo ldconfig
+
+-------------------------------------------------------------------
+
+# Verificar instalación
+/usr/local/snort/bin/snort -V
+sudo ln -s /usr/local/snort/bin/snort /usr/bin/snort
+snort -V
+
+
+5. Configuración de Snort:
+---------------------------
+sudo nano /usr/local/snort/etc/snort/snort.lua
+
+# Modificar HOME_NET:
+HOME_NET = '192.168.1.0/24'    # Cambiar por tu red
+
+# Probar configuración
+sudo dnf install libpcap-devel
+cd ~
+git clone https://github.com/snort3/libdaq.git
+cd libdaq
+./bootstrap
+./configure
+make
+sudo make install
+ls /usr/local/lib/daq
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+sudo snort -T -c /usr/local/snort/etc/snort/snort.lua
+ls /usr/local/lib/daq
+sudo dnf install -y libpcap-devel autoconf libtool
+cd ~
+git clone https://github.com/snort3/libdaq.git
+cd libdaq
+./bootstrap
+./configure
+make
+sudo make install
+sudo ldconfig
+ls /usr/local/lib/daq
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+cd /home/2024-1913/snort3
+./configure_cmake.sh --prefix=/usr/local/snort --enable-tcmalloc --with-daq=/usr/local
+cd /home/2024-1913/snort3
+rm -rf build
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/snort -DENABLE_TCMALLOC=yes -DDAQ_INCLUDE_DIR=/usr/local/include -DDAQ_LIBRARY=/usr/local/lib/libdaq.so
+sudo ln -s /usr/local/lib/daq/libdaq.so /usr/local/lib/libdaq.so
+make -j$(nproc)
+sudo make install
+export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib/daq:$LD_LIBRARY_PATH
+echo 'export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib/daq:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
+sudo snort -T -c /usr/local/snort/etc/snort/snort.lua
+
+
+# Salida esperada:
+Snort successfully validated the configuration.
+
+6. Habilitar modo promiscuo en la interfaz:
+--------------------------------------------
+sudo ip link set dev ens160 promisc on   # Cambiar 'ens160' por tu interfaz
+
+7. Crear reglas personalizadas:
+--------------------------------
+sudo nano /usr/local/snort/etc/snort/local.rules
+
+# Añadir:
+alert icmp any any -> any any (msg:"ICMP Traffic Detected"; sid:10000001;)
+alert tcp any any -> any 21 (msg:"FTP Traffic Detected"; sid:10000002;)
+alert tcp any any -> any 22 (msg:"SSH Traffic Detected"; sid:10000003;)
+alert tcp any any -> any 80 (msg:"HTTP Traffic Detected"; sid:10000004;)
+
+8. Ejecutar Snort en modo de detección:
+----------------------------------------
+sudo snort -c /usr/local/snort/etc/snort/snort.lua \
+  -R /usr/local/snort/etc/snort/local.rules \
+  -i ens160 \
+  -A alert_fast \
+  -s 65535 \
+  -k none
+
+
+# Explicación de parámetros:
+# -c: Archivo de configuración
+# -R: Reglas locales
+# -i: Interfaz de red
+# -A alert_fast: Muestra alertas por consola
+# -s: Tamaño de paquete
+# -k none: Ignora checksums inválidos
+
+9. Probar Snort:
+-----------------
+# Desde otro equipo:
+ping <IP_Snort>
+nmap -p 21,22,80 <IP_Snort>
+
+# Ver alertas en tiempo real:
+tail -f /var/log/snort/alert_fast.txt
+
+===========================================================
+FIN DEL LABORATORIO – SEGURIDAD DE RED Y DETECCIÓN DE ATAQUES
+===========================================================
